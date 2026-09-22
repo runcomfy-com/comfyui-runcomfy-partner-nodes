@@ -1,0 +1,653 @@
+[
+  {
+    "model_id": "bytedance/seedance-2.5/image-to-video/1080p",
+    "node_class": "RunComfySeedance25I2V1080p",
+    "display_name": "RunComfy Seedance 2.5 I2V 1080p",
+    "output_type": "VIDEO",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "image": {
+          "format": "image_uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "image"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedance-2.5/text-to-video/1080p",
+    "node_class": "RunComfySeedance25T2V1080p",
+    "display_name": "RunComfy Seedance 2.5 T2V 1080p",
+    "output_type": "VIDEO",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "16:9",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedance-2.5/reference-to-video/1080p",
+    "node_class": "RunComfySeedance25Reference1080p",
+    "display_name": "RunComfy Seedance 2.5 Reference to Video 1080p",
+    "output_type": "VIDEO",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "16:9",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "images": {
+          "format": "image_uris",
+          "maxItems": 9,
+          "type": "array"
+        },
+        "videos": {
+          "format": "video_uris",
+          "maxItems": 3,
+          "type": "array"
+        },
+        "audios": {
+          "format": "audio_uris",
+          "maxItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedance-2.5/image-to-video/4k",
+    "node_class": "RunComfySeedance25I2V4K",
+    "display_name": "RunComfy Seedance 2.5 I2V 4K",
+    "output_type": "VIDEO",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "image": {
+          "format": "image_uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "image"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedance-2.5/text-to-video/4k",
+    "node_class": "RunComfySeedance25T2V4K",
+    "display_name": "RunComfy Seedance 2.5 T2V 4K",
+    "output_type": "VIDEO",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "16:9",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedance-2.5/reference-to-video/4k",
+    "node_class": "RunComfySeedance25Reference4K",
+    "display_name": "RunComfy Seedance 2.5 Reference to Video 4K",
+    "output_type": "VIDEO",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "16:9",
+          "enum": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9",
+            "adaptive"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 4,
+          "type": "integer"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "images": {
+          "format": "image_uris",
+          "maxItems": 9,
+          "type": "array"
+        },
+        "videos": {
+          "format": "video_uris",
+          "maxItems": 3,
+          "minItems": 1,
+          "type": "array"
+        },
+        "audios": {
+          "format": "audio_uris",
+          "maxItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "prompt",
+        "videos"
+      ]
+    }
+  },
+  {
+    "model_id": "wan-ai/wan-3.0-prime/image-to-video",
+    "node_class": "RunComfyWan30PrimeI2V",
+    "display_name": "RunComfy Wan 3.0 Prime I2V",
+    "output_type": "VIDEO",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "adaptive",
+          "enum": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "enable_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "prompt_extend": {
+          "default": true,
+          "type": "boolean"
+        },
+        "seed": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "image_url": {
+          "format": "image_uri",
+          "type": "string"
+        },
+        "end_image_url": {
+          "format": "image_uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "image_url"
+      ]
+    }
+  },
+  {
+    "model_id": "wan-ai/wan-3.0/image-to-video",
+    "node_class": "RunComfyWan30I2V",
+    "display_name": "RunComfy Wan 3.0 I2V",
+    "output_type": "VIDEO",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "adaptive",
+          "enum": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "480p",
+            "720p",
+            "1080p"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "enable_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "prompt_extend": {
+          "default": true,
+          "type": "boolean"
+        },
+        "seed": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "image_url": {
+          "format": "image_uri",
+          "type": "string"
+        },
+        "end_image_url": {
+          "format": "image_uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "image_url"
+      ]
+    }
+  },
+  {
+    "model_id": "blackforestlabs/flux-3/text-to-video",
+    "node_class": "RunComfyFlux3Video",
+    "display_name": "RunComfy FLUX 3 Video",
+    "output_type": "VIDEO",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "21:9",
+            "2:1",
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "default": "720p",
+          "enum": [
+            "720p",
+            "1080p"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20"
+          ],
+          "type": "string"
+        },
+        "generate_audio": {
+          "default": true,
+          "type": "boolean"
+        },
+        "safety_tolerance": {
+          "default": 2,
+          "maximum": 4,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "model_id": "google/nano-banana-2-lite/text-to-image",
+    "node_class": "RunComfyNanoBanana2LiteT2I",
+    "display_name": "RunComfy Nano Banana 2 Lite T2I",
+    "output_type": "IMAGE",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "21:9",
+            "16:9",
+            "3:2",
+            "4:3",
+            "5:4",
+            "1:1",
+            "4:5",
+            "3:4",
+            "2:3",
+            "9:16",
+            "4:1",
+            "1:4",
+            "8:1",
+            "1:8"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "model_id": "google/nano-banana-2-lite/edit",
+    "node_class": "RunComfyNanoBanana2LiteEdit",
+    "display_name": "RunComfy Nano Banana 2 Lite Edit",
+    "output_type": "IMAGE",
+    "pricing_mode": "fixed",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "21:9",
+            "16:9",
+            "3:2",
+            "4:3",
+            "5:4",
+            "1:1",
+            "4:5",
+            "3:4",
+            "2:3",
+            "9:16",
+            "4:1",
+            "1:4",
+            "8:1",
+            "1:8"
+          ],
+          "type": "string"
+        },
+        "image_urls": {
+          "format": "image_uris",
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "prompt",
+        "image_urls"
+      ]
+    }
+  },
+  {
+    "model_id": "bytedance/seedream-5.0-pro/image-to-image",
+    "node_class": "RunComfySeedream50ProI2I",
+    "display_name": "RunComfy Seedream 5.0 Pro I2I",
+    "output_type": "IMAGE",
+    "pricing_mode": "base",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "default": "",
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "default": "1:1",
+          "enum": [
+            "auto",
+            "1:1",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "2:3",
+            "3:2",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "default": "2K",
+          "enum": [
+            "1K",
+            "2K"
+          ],
+          "type": "string"
+        },
+        "output_format": {
+          "default": "png",
+          "enum": [
+            "png",
+            "jpeg"
+          ],
+          "type": "string"
+        },
+        "image": {
+          "format": "image_uris",
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array",
+          "validations": [
+            {
+              "validation_error": "File size must be less than 30 MB.",
+              "validation_rule": "file_size_mb<",
+              "validation_value": 30
+            },
+            {
+              "validation_error": "The aspect ratio range should be 1:16 to 16:1.",
+              "validation_rule": "width/height>",
+              "validation_value": 0.0625
+            },
+            {
+              "validation_error": "The aspect ratio range should be 1:16 to 16:1.",
+              "validation_rule": "width/height<",
+              "validation_value": 16
+            },
+            {
+              "validation_error": "The uploaded image width and height must exceed 14 pixels.",
+              "validation_rule": "width_pixels>",
+              "validation_value": 14
+            },
+            {
+              "validation_error": "The uploaded image width and height must exceed 14 pixels.",
+              "validation_rule": "height_pixels>",
+              "validation_value": 14
+            }
+          ]
+        }
+      },
+      "required": [
+        "prompt",
+        "image"
+      ]
+    }
+  }
+]

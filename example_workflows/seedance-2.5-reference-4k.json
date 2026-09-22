@@ -1,0 +1,178 @@
+{
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadVideo",
+      "pos": [
+        70,
+        170
+      ],
+      "size": [
+        300,
+        330
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "reference.mp4"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "RunComfySeedance25Reference4K",
+      "pos": [
+        450,
+        170
+      ],
+      "size": [
+        460,
+        462
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "video_1",
+          "type": "VIDEO",
+          "link": 1
+        },
+        {
+          "name": "video_2",
+          "type": "VIDEO",
+          "link": null
+        },
+        {
+          "name": "video_3",
+          "type": "VIDEO",
+          "link": null
+        },
+        {
+          "name": "audio_1",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio_2",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio_3",
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunComfySeedance25Reference4K"
+      },
+      "widgets_values": [
+        "A quiet lakeside cabin at sunrise. Slow cinematic camera push-in, gentle ripples on the water.",
+        "16:9",
+        5,
+        true,
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveVideo",
+      "pos": [
+        990,
+        170
+      ],
+      "size": [
+        340,
+        230
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/RunComfy_seedance-2.5-reference-4k",
+        "auto",
+        "auto"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      1,
+      "VIDEO"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        30,
+        30
+      ]
+    }
+  },
+  "version": 0.4
+}

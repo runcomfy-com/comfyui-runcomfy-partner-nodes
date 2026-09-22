@@ -1,0 +1,17 @@
+[project]
+name = "comfyui-runcomfy-partner-nodes"
+version = "0.2.0"
+description = "RunComfy image and video Model API nodes for ComfyUI with live pricing."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31.0", "Pillow>=9.5.0", "numpy>=1.23.0"]
+
+[project.urls]
+Repository = "https://github.com/runcomfy-com/comfyui-runcomfy-partner-nodes"
+
+[tool.setuptools.packages.find]
+include = ["runcomfy*"]
+
+[tool.setuptools.package-data]
+runcomfy = ["models.json"]
