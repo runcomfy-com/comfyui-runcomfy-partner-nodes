@@ -1,4 +1,4 @@
-"""Native IMAGE/VIDEO adapters for the additional RunComfy model contracts."""
+"""Native IMAGE/VIDEO/AUDIO adapters for the RunComfy model contracts."""
 import asyncio
 
 from .catalog import MODELS, get_model
@@ -9,6 +9,7 @@ from .execution import cost_from_result, async_run_generation
 from .inputs import build_inputs, node_input_types
 from .journal import RequestJournal
 from .async_media import download_video, download_images
+from .audio_output import download_audio
 from .async_utils import interruptible
 from .cache_scope import execution_context, expected_account_scope, remember_account_scope
 from .pricing import MODEL_ID as ORIGINAL_MODEL_ID
@@ -120,6 +121,8 @@ class PartnerNode:
             if model.output_type == 'VIDEO':
                 path = await download_video(result['video_url'], folder_paths.get_temp_directory(), check_interrupt=check)
                 output = InputImpl.VideoFromFile(path)
+            elif model.output_type == 'AUDIO':
+                output = await download_audio(result['audio_url'], check_interrupt=check)
             else:
                 output = await download_images(result['image_urls'], check_interrupt=check)
             try:
@@ -154,8 +157,8 @@ for _model in MODELS.values():
         continue
     PARTNER_NODE_MAPPINGS[_model.node_class] = type(_model.node_class, (PartnerNode,), {
         '__module__': __name__, 'MODEL_ID': _model.model_id,
-        'CATEGORY': 'RunComfy/Image' if _model.output_type == 'IMAGE' else 'RunComfy/Video',
+        'CATEGORY': 'RunComfy/' + _model.output_type.title(),
         'DESCRIPTION': _model.display_name + '. New generations are paid. Fixed inputs reuse cached output; '
-                       'change the seed or rerun control for a new generation.',
+                       'change the seed or rerun control for a new generation. ' + ' '.join(_model.limitations),
         'RETURN_TYPES': (_model.output_type,), 'RETURN_NAMES': (_model.output_type.lower(),),
     })
