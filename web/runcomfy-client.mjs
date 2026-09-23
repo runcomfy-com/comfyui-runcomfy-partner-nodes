@@ -1,5 +1,5 @@
 import { MODELS } from "./runcomfy-models.mjs";
-import { tokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-private-account";
+import { tokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-shared-token2";
 
 const DEFAULT_MODEL = MODELS.RunComfySeedance25I2V1080p;
 const PRICE_URL = "/runcomfy/seedance-25/price";
@@ -40,9 +40,7 @@ function publicConfig(value) {
   if (typeof value?.configured !== "boolean" || !["environment", "file", "none"].includes(value.source)) {
     throw new Error("The server returned an invalid configuration status.");
   }
-  return { configured: value.configured, source: value.source,
-    ...(value.storage_scope === "account" ? { storage_scope: "account",
-      legacy_config_removed: value.legacy_config_removed === true } : {}) };
+  return { configured: value.configured, source: value.source };
 }
 
 /** Account changes invalidate every model before the server token is mutated. */

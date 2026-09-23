@@ -1,4 +1,4 @@
-import { describeTokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-private-account";
+import { describeTokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-shared-token2";
 
 /** The password exists only in this temporary dialog and the config request. */
 export function openTokenDialog({ documentTarget = globalThis.document, parent = documentTarget.body,
@@ -21,6 +21,8 @@ export function openTokenDialog({ documentTarget = globalThis.document, parent =
   Object.assign(help.style, { color: "#c6bba7", margin: "0 0 18px" });
   const priorityHelp = el("p", "A saved token overrides the default environment account. Clear the saved token to use the default account again. Leaving this field blank keeps the current configuration.");
   Object.assign(priorityHelp.style, { color: "#c6bba7", margin: "0 0 18px" });
+  const sharingHelp = el("p", "Cloud Save includes manually saved tokens in the default location. People opening the share link can use that account's balance. Clear the saved token before Cloud Save to share without it.");
+  Object.assign(sharingHelp.style, { color: "#c6bba7", margin: "0 0 18px" });
   const label = el("label", "API token");
   label.style.display = "block";
   const input = el("input");
@@ -51,7 +53,7 @@ export function openTokenDialog({ documentTarget = globalThis.document, parent =
   Object.assign(save.style, { background: "#d0ac62", color: "#211c14", fontWeight: "bold" });
   const clear = button("Clear saved token");
   const cancel = button("Close");
-  form.append(title, help, priorityHelp, label, status, actions);
+  form.append(title, help, priorityHelp, sharingHelp, label, status, actions);
   dialog.append(form);
   // Keep the native top-layer dialog inside Settings' DOM boundary so its
   // outside-pointer/focus handlers do not dismiss the underlying panel.
@@ -65,20 +67,17 @@ export function openTokenDialog({ documentTarget = globalThis.document, parent =
     : config.configured ? "Saved API token is in use and takes priority over the environment token."
       : "No API token is configured.";
   const showConfig = (config, prefix = "") => {
-    if (config.storage_scope === "account") {
-      help.textContent = "Your token is saved in the machine owner's private RunComfy account storage and restored when that account opens another cloud machine. Cloud Save and share links do not include it. People opening a share link use their own account. Everyone who can run this current instance uses its configured account balance.";
-    }
     input.placeholder = config.configured && config.source === "file"
       ? "•••••••• — saved; paste to replace" : "Paste a RunComfy API token";
-    const migration = config.legacy_config_removed && config.source !== "file"
-      ? " An older token stored with the workflow was removed. Re-enter your token once to save it privately." : "";
-    status.textContent = `${prefix}${describeConfig(config)}${migration}`;
+    status.textContent = `${prefix}${describeConfig(config)}`;
   };
   const setBusy = value => {
     busy = value;
     input.disabled = value;
     save.disabled = value;
     clear.disabled = value;
+    // Disabling the clicked button can move focus outside this dialog.
+    if (!value && !closed) input.focus();
   };
   const cleanup = () => {
     if (closed) return;

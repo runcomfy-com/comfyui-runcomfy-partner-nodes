@@ -2,10 +2,8 @@ import json
 import hashlib
 import hmac
 import os
-import re
 import threading
 from pathlib import Path
-from uuid import UUID
 
 from .errors import RunComfyError
 from .storage import atomic_write_json
@@ -13,63 +11,6 @@ from .storage import atomic_write_json
 _lock = threading.RLock()
 _scope_key = os.urandom(32)
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-ACCOUNT_MOUNT = Path('/user')
-MOUNTINFO_PATH = Path('/proc/self/mountinfo')
-_removed_legacy = set()
-
-
-def remove_hosted_legacy_credentials():
-    """Unowned snapshot credentials must never be imported into another account.
-
-    Unlink only our known credential file and its atomic-write leftovers, without
-    opening them (including symlink targets). Run at startup, before Cloud Save.
-    """
-    if 'RUNCOMFY_API_TOKEN_FILE' not in os.environ:
-        return
-    with _lock:
-        for path in [PLUGIN_ROOT / 'runcomfy_config.json',
-                     *PLUGIN_ROOT.glob('runcomfy_config.json.*')]:
-            try:
-                path.unlink()
-                _removed_legacy.add(PLUGIN_ROOT)
-            except FileNotFoundError:
-                pass
-
-
-def private_account_path():
-    """Use only the hosting service's persistent, owner-specific bind mount.
-
-    /user can also be a team or ephemeral directory. Check Linux mountinfo,
-    including bind mounts on the same filesystem, rather than directory existence
-    or ismount(). Never create /user or fall back into the container image.
-    """
-    try:
-        owner = str(UUID(os.environ.get('USER_ID', '')))
-        mount = ACCOUNT_MOUNT.absolute()
-        environment = os.environ.get('RUNCOMFY_API_ENVIRONMENT', 'production')
-        if environment not in ('production', 'development'):
-            raise ValueError('Invalid environment')
-        path = mount / '.runcomfy' / 'partner-nodes' / environment / 'runcomfy_config.json'
-        if not mount.is_dir() or path.resolve() != path:
-            raise ValueError('Unsafe private path')
-        found = False
-        for line in MOUNTINFO_PATH.read_text().splitlines():
-            fields = line.split()
-            if len(fields) < 7:
-                continue
-            decode = lambda value: re.sub(r'\\([0-7]{3})', lambda m: chr(int(m[1], 8)), value)
-            root, target = decode(fields[3]), Path(decode(fields[4]))
-            if target == mount:
-                found = root.endswith('/users/user_' + owner) and 'rw' in fields[5].split(',')
-            elif target.is_relative_to(mount) and path.is_relative_to(target):
-                raise ValueError('Unexpected nested mount')
-        if not found:
-            raise ValueError('Missing owner mount')
-        return path
-    except (OSError, ValueError, RuntimeError):
-        raise RunComfyError(
-            'RunComfy private account storage is unavailable. Restart the machine or ask support to restore its private account mount.',
-            'private_storage_unavailable', 503) from None
 
 
 def account_scope(token):
@@ -88,16 +29,10 @@ def validate_token(token):
 
 class TokenStore:
     def __init__(self, path=None):
-        self._local_path = Path(path or os.environ.get('RUNCOMFY_CONFIG_PATH') or
-                                PLUGIN_ROOT / 'runcomfy_config.json')
-
-    @property
-    def path(self):
-        if 'RUNCOMFY_API_TOKEN_FILE' in os.environ:
-            remove_hosted_legacy_credentials()
-            # Ignore local path overrides inherited from a saved machine image.
-            return private_account_path()
-        return self._local_path
+        # Keep manually saved overrides with the plugin so Cloud Save retains
+        # them. A configured shared path is also valid on managed machines.
+        self.path = Path(path or os.environ.get('RUNCOMFY_CONFIG_PATH') or
+                         PLUGIN_ROOT / 'runcomfy_config.json')
 
     def _read(self):
         # Settings is an explicit account override, including on hosted machines.
@@ -137,23 +72,12 @@ class TokenStore:
 
     def status(self):
         token, source = self._read()
-        status = {'configured': bool(token), 'source': source}
-        if 'RUNCOMFY_API_TOKEN_FILE' in os.environ:
-            status.update(storage_scope='account', legacy_config_removed=PLUGIN_ROOT in _removed_legacy)
-        return status
+        return {'configured': bool(token), 'source': source}
 
     def save(self, token):
         token = validate_token(token)
         with _lock:
-            path = self.path
-            if 'RUNCOMFY_API_TOKEN_FILE' in os.environ:
-                # The mount has already been checked; new private directories
-                # and the atomic token file receive owner-only permissions.
-                for directory in reversed(path.parent.relative_to(ACCOUNT_MOUNT).parents):
-                    (ACCOUNT_MOUNT / directory).mkdir(mode=0o700, exist_ok=True)
-                path.parent.mkdir(mode=0o700, exist_ok=True)
-                path.parent.chmod(0o700)
-            atomic_write_json(path, {'token': token})
+            atomic_write_json(self.path, {'token': token})
 
     def delete(self):
         with _lock:

@@ -112,29 +112,19 @@ test("dialog stays inside its settings host and Escape closes only the token dia
   assert.equal(env.closes, 1);
 });
 
-test("hosted account persistence and legacy re-entry are explained without returning credentials", async () => {
+test("dialog explains instance sharing and Cloud Save without exposing credentials", async () => {
   const client = createPriceHub({ fetchApi: async () => ({ ok: true, json: async () => ({
-    configured: true, source: "environment", storage_scope: "account", legacy_config_removed: true,
+    configured: true, source: "file", storage_scope: "account", legacy_config_removed: true,
     token: "never-show-this-secret", owner_id: "never-show-owner-id",
   }) }) });
   const env = setup(client);
   await tick();
   const text = env.elements.map(el => el.textContent ?? "").join(" ");
-  assert.match(text, /private.*account/i);
-  assert.match(text, /share link.*own account/i);
-  assert.match(env.status().textContent, /re-enter.*once/i);
-  assert.doesNotMatch(text, /never-show/);
-  const config = await client.getConfig();
-  assert.deepEqual(config, { configured: true, source: "environment", storage_scope: "account", legacy_config_removed: true });
-});
-
-test("unavailable private storage is explained on initial read, without exposing server error text", async () => {
-  const client = createPriceHub({ fetchApi: async () => ({ ok: false, status: 503,
-    json: async () => ({ code: "private_storage_unavailable", error: "secret-error" }) }) });
-  const env = setup(client);
-  await tick();
-  assert.match(env.status().textContent, /private account storage.*unavailable/i);
-  assert.doesNotMatch(env.status().textContent, /secret-error/);
+  assert.match(text, /shared by everyone/i);
+  assert.match(text, /Cloud Save includes.*saved token/i);
+  assert.match(text, /share link.*account.*balance/i);
+  assert.doesNotMatch(text, /private.*account|share links do not include|re-enter.*once|never-show/i);
+  assert.deepEqual(await client.getConfig(), { configured: true, source: "file" });
 });
 
 test("save reports the API failure safely instead of blaming the local connection", async () => {
@@ -177,4 +167,19 @@ test("clear distinguishes filesystem errors from connection failures", async () 
   await env.button("Clear saved token").fire("click");
   assert.match(env.status().textContent, /could not clear.*file permissions/i);
   assert.doesNotMatch(env.status().textContent, /secret-token/);
+});
+
+test("save and clear return focus to the dialog so Escape does not reach Settings", async () => {
+  const env = setup({ getConfig: async () => ({ configured: true, source: "environment" }),
+    saveToken: async () => ({ configured: true, source: "file" }),
+    clearToken: async () => ({ configured: true, source: "environment" }) });
+  await tick();
+  env.input().value = "fixture-token";
+  env.input().focused = false;
+  await env.form().fire("submit");
+  assert.equal(env.input().focused, true);
+  env.input().focused = false;
+  await env.button("Clear saved token").fire("click");
+  assert.equal(env.input().focused, true);
+  env.handle.close();
 });

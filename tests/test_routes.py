@@ -78,35 +78,20 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertNotIn('new-token', await response.text())
 
-    async def test_hosted_save_reopen_and_clear_use_private_storage_and_public_status(self):
-        root = Path(self.directory.name).resolve()
-        mount = root / 'user'
-        mount.mkdir()
-        plugin = root / 'plugin'
-        plugin.mkdir()
-        mountinfo = root / 'mountinfo'
-        owner = '11111111-1111-4111-8111-111111111111'
-        mountinfo.write_text(f'99 1 0:42 /users/user_{owner} {mount} rw - fuse.juicefs fixture rw\n')
-        with patch.dict(os.environ, {'USER_ID': owner, 'RUNCOMFY_API_TOKEN_FILE': '/offline/not-read',
-                                    'RUNCOMFY_API_TOKEN': 'fixture-default'}, clear=True), \
-                patch('runcomfy.config.ACCOUNT_MOUNT', mount), \
-                patch('runcomfy.config.PLUGIN_ROOT', plugin), \
-                patch('runcomfy.config.MOUNTINFO_PATH', mountinfo):
+    async def test_hosted_save_reopen_and_clear_use_shared_configuration(self):
+        with patch.dict(os.environ, {'RUNCOMFY_API_TOKEN_FILE': '/offline/not-read',
+                                    'RUNCOMFY_API_TOKEN': 'fixture-default'}, clear=True):
             headers = {'X-RunComfy-Client': 'comfyui'}
             response = await self.http.post('/runcomfy/config', json={'token': 'fixture-override'}, headers=headers)
             self.assertEqual(response.status, 200)
-            self.assertEqual(await response.json(), {'configured': True, 'source': 'file',
-                                                    'storage_scope': 'account', 'legacy_config_removed': False})
-            self.assertEqual(TokenStore().get(), 'fixture-override')
-            self.assertFalse((root / 'config.json').exists())
+            self.assertEqual(await response.json(), {'configured': True, 'source': 'file'})
+            self.assertEqual(TokenStore(self.store.path).get(), 'fixture-override')
+            self.assertEqual(self.store.path, Path(self.directory.name) / 'config.json')
             response = await self.http.get('/runcomfy/config')
             self.assertNotIn('fixture-override', await response.text())
             response = await self.http.delete('/runcomfy/config', json={}, headers=headers)
             self.assertEqual((await response.json())['source'], 'environment')
-            mountinfo.write_text('')
-            response = await self.http.get('/runcomfy/config')
-            self.assertEqual(response.status, 503)
-            self.assertEqual((await response.json())['code'], 'private_storage_unavailable')
+            self.assertFalse(self.store.path.exists())
 
     async def test_saved_override_drives_all_model_requests_and_clear_restores_environment(self):
         headers = {'X-RunComfy-Client': 'comfyui'}

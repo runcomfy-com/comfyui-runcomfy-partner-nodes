@@ -4,7 +4,6 @@ const messages = new Map([
   ["invalid_config", "The token format is invalid. Paste only the API token, without a Bearer prefix or spaces."],
   ["forbidden", "ComfyUI blocked the configuration request. Reload this page using the server's configured URL and try again."],
   ["config_error", "ComfyUI could not update its token configuration. Check the server configuration and file permissions."],
-  ["private_storage_unavailable", "RunComfy private account storage is unavailable. Restart the machine or contact support to restore its private account storage."],
   ["network_error", "Your ComfyUI server could not reach RunComfy to verify the token. Try again shortly."],
   ["api_error", "RunComfy is currently unavailable or returned an error while verifying the token. Try again shortly."],
   ["invalid_response", "RunComfy returned an unreadable response while verifying the token. Try again shortly."],

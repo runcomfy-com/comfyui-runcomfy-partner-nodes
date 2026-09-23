@@ -1,5 +1,5 @@
-import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs?v=20260923-private-account";
-import { openTokenDialog } from "./runcomfy-token-dialog.mjs?v=20260923-private-account";
+import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs?v=20260923-shared-token2";
+import { openTokenDialog } from "./runcomfy-token-dialog.mjs?v=20260923-shared-token2";
 import { MODELS } from "./runcomfy-models.mjs";
 import { createExecutionRouter, createExecutedHandler, createStatusWidget, migrateWorkflowWidgets } from "./runcomfy-status.mjs";
 
