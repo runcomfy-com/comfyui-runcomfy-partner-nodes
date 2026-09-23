@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-runcomfy-partner-nodes"
-version = "0.2.0"
-description = "RunComfy image and video Model API nodes for ComfyUI with live pricing."
+version = "0.3.0"
+description = "RunComfy image, video, and audio Model API nodes for ComfyUI with live pricing."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.10"

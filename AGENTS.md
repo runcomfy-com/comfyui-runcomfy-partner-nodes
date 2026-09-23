@@ -2,7 +2,7 @@
 
 ## Product contract
 
-This package lets ComfyUI users run RunComfy models with their own RunComfy account. Users must be able to explicitly switch a supported official partner node to a RunComfy node while preserving compatible settings and graph connections. The twelve supported RunComfy classes are listed in `runcomfy/models.json`; keep Python and frontend catalogs consistent.
+This package lets ComfyUI users run RunComfy models with their own RunComfy account. Users must be able to explicitly switch a supported official partner node to a RunComfy node while preserving compatible settings and graph connections. The supported RunComfy classes are listed in `runcomfy/models.json`; derive counts from this registry and keep Python and frontend catalogs consistent.
 
 - Keep RunComfy class IDs unique. Never replace official registrations, impersonate Comfy billing, mark active official nodes deprecated, or reroute workflows during loading.
 - Switching is an explicit user action. Preview the target, account/billing change, mapped settings, and material differences before applying. Switching must never submit a generation.
@@ -33,6 +33,19 @@ This package lets ComfyUI users run RunComfy models with their own RunComfy acco
 - Keep essential status, price, and recovery information readable; do not rely only on a painted canvas badge. Do not fabricate percentage progress.
 - `API_NODE` / `is_api_node` has Comfy account integration semantics. Do not enable it blindly for RunComfy authentication.
 
+## Adding model nodes
+
+- Verify exact endpoint IDs and request schemas against RunComfy's deployed Model API. Use vendor announcements for release dates; RunComfy page update dates establish availability only. Keep these date meanings separate and cite public sources in `docs/recent-models.md`.
+- Preserve existing node IDs, input order, names, defaults and frontend metadata. The original twelve contracts are intentionally frozen by `scripts/update_model_catalog.py`; a schema migration needs explicit compatibility handling.
+- Add unique, predictable class IDs and mirror every new entry in `web/runcomfy-models.mjs`. Use a native IMAGE, VIDEO or AUDIO output that matches the endpoint's verified output capability.
+- New nodes use `pricing_mode: "base"`. Do not infer fixed prices from names, example requests or prose. Accept only supported live units and never commit monetary rates.
+- Do not expose raw credentials, provider routing, internal repository references or private development history in public catalogs and documentation. A saved public catalog response is sufficient for schema curation.
+- Remove sample prompts, lyrics, tags and media URL defaults. Preserve meaningful enum, numeric and boolean defaults. Normalize the catalog's nonstandard `float` type to JSON Schema `number`.
+- Structured array/object inputs need dedicated editors and validation. Exclude endpoints that require them; record omitted optional fields in `omitted_inputs` and explain them through `limitations`. Switching must block when an omitted source field is populated or connected.
+- Keep published media limits. Where a media array has no published maximum, impose and disclose a local maximum of 16 references. Never silently truncate references.
+- Audio results must decode to native AUDIO with bounded channels, duration, sample count and download size. Do not offer raw PCM without an explicit format contract; Seed Audio currently excludes that option.
+- Run the offline catalog updater with `--check` against a saved live catalog response. Updating the registry does not prove paid generation or official-node equivalence; test runtime/media behavior and switch mappings separately.
+
 ## Credentials and scope
 
 - Hosted RunComfy startup installs this package beside ComfyUI-RunComfy-Helper and exports the machine owner's existing account token as `RUNCOMFY_API_TOKEN`. Prefer that environment value for all partner nodes. `RUNCOMFY_API_TOKEN_FILE` marks a managed machine: if its injected token is missing, fail closed instead of using legacy environment or saved-file credentials. The startup script reads the file; nodes do not read its contents directly.
@@ -48,7 +61,7 @@ This package lets ComfyUI users run RunComfy models with their own RunComfy acco
 - Read the current ComfyUI source and official documentation for integration APIs. Do not assume API prompt JSON and visual workflow JSON use the same representation.
 - Run `python -m unittest discover -s tests -v` using ComfyUI's Python and `node --test tests/*.test.mjs`.
 - Run all native integration scripts with `COMFYUI_PATH` set: `tests/integration_native_video.py`, `tests/integration_partner_media.py`, and `tests/integration_workflow_cache.py`. The cache test must use the real ComfyUI execution engine with offline transports.
-- Test switch mappings against real official schemas and representative graph fixtures for all twelve targets. Include linked widgets, multiple outputs, incompatible fields, reference limits, same/different image sizes, nested graphs, rollback and undo/redo.
+- Test switch mappings against real official schemas and representative graph fixtures for every registered target or its explicit unsupported explanation. Include linked widgets, multiple outputs, omitted structured fields, incompatible settings, reference limits, same/different image sizes, nested graphs, rollback and undo/redo.
 - Test fixed-seed downstream reruns, deliberate reruns, account changes, resume, cancellation while waiting/downloading, and uncertain submissions with offline transports.
 - Verify the actual browser interaction, saved/reloaded workflow, status/recovery UI, and no automatic execution. Use an isolated instance/profile for tests; do not queue real paid workflows or overwrite the user's active graph.
 - Check the active queue before restarting the user's local instance. Preserve configuration and workflows. Leave the test link working and report the exact verification boundary.

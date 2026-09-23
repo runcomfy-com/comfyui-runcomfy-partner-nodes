@@ -4,10 +4,12 @@ from runcomfy.catalog import MODELS, get_model
 
 
 class CatalogTests(unittest.TestCase):
-    def test_all_twelve_distinct_model_contracts_are_registered(self):
-        self.assertEqual(len(MODELS), 12)
-        self.assertEqual(len({m.node_class for m in MODELS.values()}), 12)
-        self.assertEqual(sum(m.output_type == 'IMAGE' for m in MODELS.values()), 3)
+    def test_all_curated_model_contracts_have_distinct_registration_ids(self):
+        self.assertEqual(len(MODELS), 120)
+        self.assertEqual(len({m.node_class for m in MODELS.values()}), len(MODELS))
+        self.assertEqual(sum(m.output_type == 'IMAGE' for m in MODELS.values()), 24)
+        self.assertEqual(sum(m.output_type == 'VIDEO' for m in MODELS.values()), 90)
+        self.assertEqual(sum(m.output_type == 'AUDIO' for m in MODELS.values()), 6)
 
     def test_canonical_flux_endpoint_and_4k_required_reference(self):
         flux = get_model('blackforestlabs/flux-3/text-to-video')

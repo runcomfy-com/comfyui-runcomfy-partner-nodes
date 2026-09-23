@@ -11,6 +11,7 @@ from runcomfy.catalog import MODELS
 from runcomfy.errors import RunComfyError
 from runcomfy.partner_nodes import PARTNER_NODE_MAPPINGS
 from runcomfy.pricing import parse_price
+from tests.test_recent_catalog import generation_values
 
 
 def comfy_modules():
@@ -166,9 +167,10 @@ class PartnerNodeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.close.await_count, 2)
         mm.throw_exception_if_processing_interrupted.assert_not_called()
 
-    async def test_all_eleven_adapters_return_only_the_native_output(self):
-        self.assertEqual(len(PARTNER_NODE_MAPPINGS), 11)
+    async def test_all_catalog_adapters_return_only_the_declared_native_output(self):
+        self.assertEqual(len(PARTNER_NODE_MAPPINGS), len(MODELS) - 1)
         image = torch.zeros(1, 16, 16, 3)
+        audio = {'waveform': torch.zeros(1, 1, 8000), 'sample_rate': 8000}
         for node_class, Node in PARTNER_NODE_MAPPINGS.items():
             model = MODELS[Node.MODEL_ID]
             client = AsyncMock()
@@ -176,17 +178,18 @@ class PartnerNodeTests(unittest.IsolatedAsyncioTestCase):
                 'base_price_usd': .1, 'price_unit': model.price_unit}, model.model_id)
             client.submit.return_value = 'job-1'
             client.result.return_value = {'model_id': model.model_id, 'status': 'completed', 'cost': .1,
-                'output': {'video': 'https://storage.runcomfy.net/out.mp4', 'image': 'https://storage.runcomfy.net/out.png'}}
-            args = {'prompt': 'a tree', 'image': image, 'images': image}
-            if 'reference-to-video/4k' in model.model_id:
-                args['video_1'] = object()
+                'output': {'video': 'https://storage.runcomfy.net/out.mp4',
+                           'image': 'https://storage.runcomfy.net/out.png', 'audio': 'https://storage.runcomfy.net/out.wav'}}
+            args = generation_values(model)
             with self.subTest(node=node_class), patch.dict(sys.modules, comfy_modules()), \
                     patch('runcomfy.partner_nodes.TokenStore') as store, \
                     patch('runcomfy.partner_nodes.RequestJournal'), \
                     patch('runcomfy.partner_nodes.AsyncRunComfyClient', return_value=client) as constructor, \
                     patch('runcomfy.partner_nodes.download_video', return_value='/tmp/video.mp4'), \
                     patch('runcomfy.partner_nodes.download_images', return_value=image), \
-                    patch('runcomfy.inputs.video_data_uri', return_value='data:video/mp4;base64,eA=='):
+                    patch('runcomfy.partner_nodes.download_audio', return_value=audio), \
+                    patch('runcomfy.inputs.video_data_uri', return_value='data:video/mp4;base64,eA=='), \
+                    patch('runcomfy.inputs.audio_data_uri', return_value='data:audio/wav;base64,eA=='):
                 store.return_value.get.return_value = 'test-token'
                 result = await Node().generate(**args)
                 constructor.assert_called_once_with('test-token', model_id=model.model_id)
@@ -194,6 +197,8 @@ class PartnerNodeTests(unittest.IsolatedAsyncioTestCase):
                 client.close.assert_called_once()
                 self.assertEqual(Node.RETURN_TYPES, (model.output_type,))
                 self.assertEqual(len(result['result']), 1)
+                if model.output_type == 'AUDIO':
+                    self.assertIs(result['result'][0], audio)
                 self.assertEqual(result['ui']['runcomfy'][0]['model_id'], model.model_id)
 
     async def test_missing_token_fails_before_media_encoding_or_submission(self):

@@ -12,6 +12,8 @@ class Model:
     output_type: str
     pricing_mode: str
     schema: dict
+    limitations: tuple[str, ...] = ()
+    omitted_inputs: tuple[str, ...] = ()
 
     @property
     def price_unit(self):

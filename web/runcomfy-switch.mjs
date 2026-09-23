@@ -1,5 +1,7 @@
 /** Explicit, non-executing provider switch. Modern ComfyUI getNodeMenuItems API. */
 import { openSwitchPreview } from './runcomfy-switch-dialog.mjs';
+import { MODELS } from './runcomfy-models.mjs';
+import { mapRecentSwitch, recentSwitchTargets } from './runcomfy-recent-switch.mjs';
 
 const FAMILIES = {
   ByteDance2TextToVideoNode: ['seedance', 'T2V'],
@@ -27,7 +29,7 @@ const typeOf = spec => Array.isArray(spec?.[0]) ? 'COMBO' : spec?.[0];
 const defaultOf = spec => spec?.[1]?.default ?? choiceList(spec)?.[0] ?? ({ BOOLEAN: false, STRING: '', INT: 0, FLOAT: 0 }[typeOf(spec)]);
 const labelOf = (id, definitions) => definitions[id]?.display_name || id.replace(/^RunComfy/, 'RunComfy ');
 
-export function switchTargets(node) {
+function originalSwitchTargets(node) {
   const [family, kind] = FAMILIES[nodeType(node)] || [];
   const model = valuesOf(node).model;
   if (family === 'seedance') return [`RunComfySeedance25${kind}1080p`, `RunComfySeedance25${kind}4K`];
@@ -39,6 +41,14 @@ export function switchTargets(node) {
   }
   if (family === 'seedream') return ['RunComfySeedream50ProI2I'];
   return [];
+}
+
+export function switchTargets(node, definitions) {
+  const original = originalSwitchTargets(node);
+  // Keep the original API usable before definitions are registered. Runtime menus
+  // add only installed targets from the matching, explicitly allowlisted family.
+  if (!definitions && original.length) return original;
+  return [...new Set([...original, ...recentSwitchTargets(node, definitions)])];
 }
 
 /** Expand the active V3 dynamic schema into the dotted names used by API prompts/widgets. */
@@ -62,6 +72,7 @@ function acceptValue(name, value, spec) {
   if (choices && !choices.includes(value)) return `${name}: ${JSON.stringify(value)} is not supported by RunComfy.`;
   if (type === 'INT' && /seed/.test(name) && !Number.isSafeInteger(value)) return `${name}: this seed cannot be represented exactly. Set the source seed to an integer from ${opt.min ?? 0} to ${Math.min(opt.max ?? Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)} before switching.`;
   if (type === 'INT' && (!Number.isSafeInteger(value) || value < (opt.min ?? -Infinity) || value > (opt.max ?? Infinity))) return `${name} must be an integer between ${opt.min ?? 'the minimum'} and ${opt.max ?? 'the maximum'}.`;
+  if (type === 'FLOAT' && (typeof value !== 'number' || !Number.isFinite(value) || value < (opt.min ?? -Infinity) || value > (opt.max ?? Infinity))) return `${name} must be a finite number between ${opt.min ?? 'the minimum'} and ${opt.max ?? 'the maximum'}.`;
   if (type === 'BOOLEAN' && typeof value !== 'boolean') return `${name} must be true or false.`;
   if (type === 'STRING' && typeof value !== 'string') return `${name} must be text.`;
   return null;
@@ -72,18 +83,23 @@ export function planSwitch(node, targetId, definitions) {
   const values = valuesOf(node), target = definitions[targetId];
   const errors = [], notes = [], settings = {}, inputMap = {}, transforms = new Set(), ignored = [];
   const plan = { sourceId, targetId, targetLabel: labelOf(targetId, definitions), errors, notes, settings, inputMap, outputMap: { 0: 0 }, ignored, source: node };
-  if (!switchTargets(node).includes(targetId)) errors.push('This source and RunComfy model are not a supported switch.');
+  if (!switchTargets(node, definitions).includes(targetId)) errors.push('This source and RunComfy model are not a supported switch.');
   if (!target || !definitions[sourceId]) { errors.push('Node definitions are not available. Refresh ComfyUI and try again.'); return plan; }
   const sourceSpecs = activeInputs(definitions[sourceId], values);
   const targetSpecs = activeInputs(target, {});
   const map = (source, destination, transform) => {
     inputMap[source] = destination;
     if (transform) transforms.add(source);
-    if (source in values) settings[destination] = transform ? transform(values[source]) : values[source];
+    if (targetSpecs[destination]?.[1]?.forceInput) {
+      if (!(node.inputs || []).some(i => i.name === source && i.link != null)) errors.push(`“${destination}” is a connection-only target input. Connect a compatible value to the source “${source}” before switching; its fixed widget value cannot be carried over.`);
+    } else if (source in values) settings[destination] = transform ? transform(values[source]) : values[source];
   };
   for (const link of node.graph?.floatingLinks?.values?.() || []) if (link.origin_id === node.id || link.target_id === node.id) errors.push('Finish or remove loose connections on this node before switching.');
   const model = values.model;
-  if (family === 'seedance') {
+  const recent = !originalSwitchTargets(node).includes(targetId);
+  if (recent) {
+    mapRecentSwitch({ node, targetId, values, sourceSpecs, targetSpecs, map, inputMap, settings, errors, notes });
+  } else if (family === 'seedance') {
     if (model !== 'Seedance 2.5') errors.push('Select Seedance 2.5 first. Other model versions are not equivalent.');
     for (const field of ['prompt', 'duration', 'generate_audio']) map('model.' + field, field);
     if (kind !== 'I2V') map('model.ratio', 'aspect_ratio');
@@ -126,17 +142,24 @@ export function planSwitch(node, targetId, definitions) {
     if (kind === 'legacy') map('image', 'images');
   }
   // These seeds are rerun controls on some providers, and a provider seed on Wan.
-  map('seed', family === 'wan' ? 'seed' : 'generation_seed');
-  if (family === 'seedream') map('model.seed', 'generation_seed');
+  if (!recent) {
+    map('seed', family === 'wan' ? 'seed' : 'generation_seed');
+    if (family === 'seedream') map('model.seed', 'generation_seed');
+  }
   const controls = (node.widgets || []).filter(w => /control_after_generate$/.test(w.name));
   if (controls.length === 1) {
-    plan.controlAfterGenerate = controls[0].value;
-    notes.push(`Rerun control: ${controls[0].value}. ${family === 'wan' ? 'The provider seed is preserved.' : 'This controls reruns; it does not guarantee identical generated results.'}`);
+    const targetHasControl = Object.values(targetSpecs).some(spec => spec[1]?.control_after_generate && !spec[1]?.forceInput);
+    if (targetHasControl) {
+      plan.controlAfterGenerate = controls[0].value;
+      notes.push(`Rerun control: ${controls[0].value}. ${family === 'wan' ? 'The provider seed is preserved.' : 'This controls reruns; it does not guarantee identical generated results.'}`);
+    } else if ((node.inputs || []).some(i => i.link != null && inputMap[i.name] === 'seed')) {
+      notes.push('The seed connection is preserved. Its upstream node controls the value and reruns; the source node’s inactive seed widget control is not copied.');
+    } else errors.push('The target has no widget rerun control. Connect the source seed to a compatible upstream value before switching.');
   }
   else if (controls.length > 1) errors.push('Multiple rerun controls cannot be mapped safely.');
 
   const images = [];
-  for (const input of node.inputs || []) {
+  for (const input of recent ? [] : node.inputs || []) {
     if (input.link == null) continue;
     const name = input.name;
     if (/^(?:model\.)?(?:reference_images|images)\.image_\d+$/.test(name)) images.push(input);
@@ -181,7 +204,10 @@ export function planSwitch(node, targetId, definitions) {
     if (error) errors.push(error);
   }
   const linkedDestinations = new Set((node.inputs || []).filter(i => i.link != null).map(i => inputMap[i.name]));
-  if ((/I2V/.test(targetId) || targetId === 'RunComfyNanoBanana2LiteEdit' || family === 'seedream') && !linkedDestinations.has(targetId === 'RunComfyNanoBanana2LiteEdit' || family === 'seedream' ? 'images' : 'image')) errors.push('Connect the required reference image before switching.');
+  if (!recent && (/I2V/.test(targetId) || targetId === 'RunComfyNanoBanana2LiteEdit' || family === 'seedream') && !linkedDestinations.has(targetId === 'RunComfyNanoBanana2LiteEdit' || family === 'seedream' ? 'images' : 'image')) errors.push('Connect the required reference image before switching.');
+  for (const group of MODELS[targetId]?.requiredMedia || []) {
+    if (!group.some(name => linkedDestinations.has(name))) errors.push(`Connect the required reference input “${group.join(' / ')}” before switching.`);
+  }
   if (targetId === 'RunComfySeedance25Reference4K' && ![1, 2, 3].some(i => linkedDestinations.has(`video_${i}`))) errors.push('RunComfy Seedance 2.5 Reference 4K requires at least one reference video.');
   if (family === 'seedance' && kind === 'Reference' && !linkedDestinations.has('images') && ![1, 2, 3].some(i => linkedDestinations.has(`video_${i}`) || linkedDestinations.has(`audio_${i}`))) errors.push('Connect at least one supported reference before switching.');
   if (ignored.length) notes.push(`Default controls not carried over: ${ignored.map(shortName).join(', ')}.`);
@@ -289,9 +315,9 @@ export function installRunComfySwitch({ app, api, createNode = type => globalThi
     name: 'RunComfy.ProviderSwitch',
     beforeRegisterNodeDef(_nodeType, definition) { definitions[definition.name] = definition; },
     getNodeMenuItems(node) {
-      if (!switchTargets(node).length) return [];
+      if (!switchTargets(node, definitions).length) return [];
       return [{ content: 'Switch to RunComfy…', callback: () => {
-        preview({ node, targets: switchTargets(node), definitions, api,
+        preview({ node, targets: switchTargets(node, definitions), definitions, api,
           makePlan: target => makePlan(node, target),
           apply: plan => applySwitch(plan, { createNode, canvas: app.canvas, definitions, canSwitch }) });
       } }];

@@ -37,10 +37,28 @@ def output_images(result):
     return [image] if isinstance(image, str) and image else None
 
 
+def output_audio(result):
+    output = result.get('output') or {}
+    if not isinstance(output, dict):
+        return None
+    audios = output.get('audios')
+    # A native AUDIO socket holds one clip. Never silently discard extra clips.
+    if isinstance(audios, list) and audios:
+        unique = list(dict.fromkeys(audios)) if all(isinstance(url, str) and url for url in audios) else []
+        return unique[0] if len(unique) == 1 else None
+    audio = output.get('audio')
+    return audio if isinstance(audio, str) and audio else None
+
+
 async def async_run_generation(client, inputs, resume_request_id='', on_event=lambda event: None,
                                check_interrupt=lambda: None, timeout=1800, output_type='VIDEO',
                                model_id=None, poll_interval=5, cancel_timeout=5):
     """One paid submission, interruptible polling, and bounded best-effort cancellation."""
+    output_handlers = {'IMAGE': (output_images, 'image_urls'), 'VIDEO': (output_video, 'video_url'),
+                       'AUDIO': (output_audio, 'audio_url')}
+    if output_type not in output_handlers:
+        raise ValueError('Unsupported native output type.')
+    extract_output, output_key = output_handlers[output_type]
     request_id = resume_request_id.strip()
     quote = None
     interrupted = False
@@ -89,12 +107,12 @@ async def async_run_generation(client, inputs, resume_request_id='', on_event=la
             if model_id and result.get('model_id') and result['model_id'] != model_id:
                 raise RunComfyError('This request belongs to a different RunComfy model.', 'model_mismatch', 400)
             if state in ('completed', 'succeeded'):
-                url = output_images(result) if output_type == 'IMAGE' else output_video(result)
+                url = extract_output(result)
                 if not url:
                     raise RunComfyError('Request %s completed without usable %s output. '
                                         'Check RunComfy Generations.' % (request_id, output_type.lower()), 'missing_output')
                 return {'state': 'completed', 'request_id': request_id,
-                        ('image_urls' if output_type == 'IMAGE' else 'video_url'): url,
+                        output_key: url,
                         'cost_usd': cost_from_result(result), 'quote': quote}
             if state in ('failed', 'cancelled'):
                 emit(state, message='RunComfy request %s.' % state)
