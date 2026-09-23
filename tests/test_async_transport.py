@@ -1,8 +1,10 @@
 import asyncio
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import aiohttp
 from PIL import Image
@@ -61,6 +63,30 @@ class Session:
 
 
 class AsyncClientTests(unittest.IsolatedAsyncioTestCase):
+    async def test_development_environment_applies_to_every_generation_request(self):
+        session = Session(Response({'model_id': MODEL_ID, 'base_price_usd': .1, 'price_unit': 'second'}),
+                          Response({'request_id': 'job-1'}), Response({'status': 'in_queue'}), Response({}))
+        with patch.dict(os.environ, {'RUNCOMFY_API_ENVIRONMENT': 'development'}):
+            client = AsyncRunComfyClient('synthetic-token', session=session)
+        await client.price()
+        await client.submit({'prompt': 'test'})
+        await client.result('job-1')
+        await client.cancel('job-1')
+        await client.close()
+        self.assertEqual(len(session.calls), 4)
+        for _, url, options in session.calls:
+            self.assertTrue(url.startswith('https://model-api-int.runcomfy.net/v1/'))
+            self.assertEqual(options['headers']['Authorization'], 'Bearer synthetic-token')
+            self.assertFalse(options['allow_redirects'])
+
+    async def test_invalid_environment_fails_before_creating_an_async_session(self):
+        with patch.dict(os.environ, {'RUNCOMFY_API_ENVIRONMENT': 'unknown'}), \
+                patch('runcomfy.client.aiohttp.ClientSession') as session_factory:
+            with self.assertRaises(RunComfyError) as caught:
+                AsyncRunComfyClient('synthetic-token')
+        self.assertEqual(caught.exception.code, 'config_error')
+        session_factory.assert_not_called()
+
     async def test_price_submit_result_use_fixed_origin_without_redirects(self):
         responses = [Response({'model_id': MODEL_ID, 'base_price_usd': .1, 'price_unit': 'second'}),
                      Response({'request_id': 'job-1'}), Response({'status': 'in_queue'})]

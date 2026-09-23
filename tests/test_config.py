@@ -32,49 +32,36 @@ class ConfigTests(unittest.TestCase):
         self.store.delete()
         self.assertEqual(self.store.status(), {'configured': False, 'source': 'none'})
 
-    def test_environment_precedence_and_clear(self):
+    def test_saved_token_precedence_replacement_and_clear(self):
         self.store.save('file-token')
         os.environ['RUNCOMFY_TOKEN'] = 'compat-token'
         os.environ['RUNCOMFY_API_TOKEN'] = 'preferred-token'
-        self.assertEqual(self.store.get(), 'preferred-token')
-        self.assertEqual(self.store.status()['source'], 'environment')
+        self.assertEqual(self.store.get(), 'file-token')
+        self.assertEqual(self.store.status()['source'], 'file')
+        self.store.save('latest-file-token')
+        self.assertEqual(TokenStore(self.path).get(), 'latest-file-token')
         self.store.delete()
         self.assertEqual(self.store.get(), 'preferred-token')
+        self.assertEqual(self.store.status()['source'], 'environment')
+        del os.environ['RUNCOMFY_API_TOKEN']
+        self.assertEqual(self.store.get(), 'compat-token')
 
     def test_blank_or_header_injection_token_is_rejected(self):
         for token in ['', 'a\nb', 'a\rb', 'a b', None]:
             with self.subTest(token=token), self.assertRaises(ValueError):
                 self.store.save(token)
 
-    def test_hosted_token_is_used_without_creating_configuration(self):
-        os.environ['RUNCOMFY_API_TOKEN_FILE'] = '/run/runcomfy-credentials/api-token'
-        os.environ['RUNCOMFY_API_TOKEN'] = 'fixture-machine-owner'
-        os.environ['RUNCOMFY_TOKEN'] = 'fixture-legacy-account'
-        self.assertEqual(self.store.get(), 'fixture-machine-owner')
-        self.assertEqual(self.store.status(), {'configured': True, 'source': 'environment'})
-        self.assertFalse(self.path.exists())
+    def test_empty_saved_configuration_uses_environment(self):
+        os.environ['RUNCOMFY_API_TOKEN'] = 'fixture-environment'
+        for data in [{}, {'token': ''}, {'token': '   '}]:
+            self.path.write_text(json.dumps(data))
+            self.assertEqual(self.store.get(), 'fixture-environment')
 
-    def test_missing_hosted_token_cannot_revive_saved_or_legacy_account(self):
-        self.store.save('fixture-saved-other-account')
-        os.environ['RUNCOMFY_TOKEN'] = 'fixture-legacy-other-account'
-        for marker in ['/run/runcomfy-credentials/api-token', '']:
-            for token in [None, '', '   ']:
-                with self.subTest(marker=marker, token=token):
-                    os.environ['RUNCOMFY_API_TOKEN_FILE'] = marker
-                    if token is None:
-                        os.environ.pop('RUNCOMFY_API_TOKEN', None)
-                    else:
-                        os.environ['RUNCOMFY_API_TOKEN'] = token
-                    self.assertEqual(self.store.status(), {'configured': False, 'source': 'none'})
-                    with self.assertRaisesRegex(Exception, 'machine account token is unavailable'):
-                        self.store.get()
-
-    def test_hosted_environment_overrides_saved_config_and_tracks_rotation(self):
-        self.store.save('fixture-saved-other-account')
-        os.environ['RUNCOMFY_API_TOKEN_FILE'] = '/run/runcomfy-credentials/api-token'
-        for value in ['fixture-owner-original', 'fixture-owner-rotated']:
-            os.environ['RUNCOMFY_API_TOKEN'] = value
-            self.assertEqual(self.store.get(), value)
+    def test_invalid_saved_override_does_not_silently_bill_environment_account(self):
+        os.environ['RUNCOMFY_API_TOKEN'] = 'fixture-environment'
+        self.path.write_text('{broken')
+        with self.assertRaisesRegex(Exception, 'Cannot read RunComfy token configuration'):
+            self.store.get()
 
 
 if __name__ == '__main__':

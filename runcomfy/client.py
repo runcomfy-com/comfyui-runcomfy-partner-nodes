@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import replace
 
@@ -12,7 +13,19 @@ from .errors import RunComfyError
 from .pricing import MODEL_ID, parse_price
 
 API_BASE = 'https://model-api.runcomfy.net'
+API_ENVIRONMENTS = {
+    'production': API_BASE,
+    'development': 'https://model-api-int.runcomfy.net',
+}
 MAX_REQUEST_BYTES = 64 * 1024 * 1024
+
+
+def configured_api_base():
+    environment = os.environ.get('RUNCOMFY_API_ENVIRONMENT', 'production')
+    if environment not in API_ENVIRONMENTS:
+        raise RunComfyError('Set RUNCOMFY_API_ENVIRONMENT to production or development.',
+                           'config_error', 400)
+    return API_ENVIRONMENTS[environment]
 
 
 def validate_request_id(request_id):
@@ -24,6 +37,7 @@ def validate_request_id(request_id):
 class RunComfyClient:
     def __init__(self, token, session=None, model_id=MODEL_ID):
         self.model_id = get_model(model_id).model_id
+        self.api_base = configured_api_base()
         self.token = validate_token(token)
         self.session = session or requests.Session()
 
@@ -31,7 +45,7 @@ class RunComfyClient:
         self.session.close()
 
     def _request(self, method, path, **kwargs):
-        # Authentication is only ever sent to this fixed origin, never to output URLs.
+        # Authentication stays on the selected RunComfy origin, never on output URLs.
         headers = {
             'Authorization': 'Bearer ' + self.token,
             'Accept': 'application/json',
@@ -40,7 +54,7 @@ class RunComfyClient:
             'User-Agent': 'RunComfy-ComfyUI/0.2.0',
         }
         try:
-            response = self.session.request(method, API_BASE + path, headers=headers,
+            response = self.session.request(method, self.api_base + path, headers=headers,
                                             timeout=(10, 90 if method == 'POST' else 20),
                                             allow_redirects=False, **kwargs)
         except requests.RequestException:
@@ -108,10 +122,11 @@ class AsyncRunComfyClient:
     """Generation transport; configuration routes retain the synchronous client.
 
     Sessions carry no default credentials. Authentication is attached only to the
-    fixed API origin, and paid POSTs are never retried.
+    selected RunComfy API origin, and paid POSTs are never retried.
     """
     def __init__(self, token, session=None, model_id=MODEL_ID):
         self.model_id = get_model(model_id).model_id
+        self.api_base = configured_api_base()
         self.token = validate_token(token)
         self.session = session or aiohttp.ClientSession()
 
@@ -125,7 +140,7 @@ class AsyncRunComfyClient:
         timeout = aiohttp.ClientTimeout(total=100 if method == 'POST' else 30,
                                         connect=10, sock_read=90 if method == 'POST' else 20)
         try:
-            async with self.session.request(method, API_BASE + path, headers=headers,
+            async with self.session.request(method, self.api_base + path, headers=headers,
                                             timeout=timeout, allow_redirects=False, **kwargs) as response:
                 status = response.status
                 if status in (401, 403):

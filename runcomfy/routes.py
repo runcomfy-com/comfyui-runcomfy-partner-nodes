@@ -6,7 +6,7 @@ from aiohttp import web
 
 from .client import RunComfyClient, validate_request_id
 from .catalog import MODELS, get_model
-from .config import TokenStore, validate_token
+from .config import TokenStore, validate_token, remove_hosted_legacy_credentials
 from .errors import RunComfyError
 from .journal import RequestJournal
 
@@ -155,5 +155,11 @@ def create_routes(store=None, client_factory=RunComfyClient, prompt_queue=None):
 
 def register_routes():
     from server import PromptServer
+    try:
+        remove_hosted_legacy_credentials()
+    except OSError:
+        # Keep the configuration endpoint available so subsequent operations can
+        # report the error; never log credential contents or fall back to them.
+        print('RunComfy: cannot remove legacy credentials. Fix plugin directory permissions before Cloud Save.')
     for route in create_routes():
         PromptServer.instance.routes.route(route.method, route.path)(route.handler)

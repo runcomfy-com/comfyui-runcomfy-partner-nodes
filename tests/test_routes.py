@@ -1,7 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -76,6 +77,55 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                                         headers={'X-RunComfy-Client': 'comfyui'})
         self.assertEqual(response.status, 200)
         self.assertNotIn('new-token', await response.text())
+
+    async def test_hosted_save_reopen_and_clear_use_private_storage_and_public_status(self):
+        root = Path(self.directory.name).resolve()
+        mount = root / 'user'
+        mount.mkdir()
+        plugin = root / 'plugin'
+        plugin.mkdir()
+        mountinfo = root / 'mountinfo'
+        owner = '11111111-1111-4111-8111-111111111111'
+        mountinfo.write_text(f'99 1 0:42 /users/user_{owner} {mount} rw - fuse.juicefs fixture rw\n')
+        with patch.dict(os.environ, {'USER_ID': owner, 'RUNCOMFY_API_TOKEN_FILE': '/offline/not-read',
+                                    'RUNCOMFY_API_TOKEN': 'fixture-default'}, clear=True), \
+                patch('runcomfy.config.ACCOUNT_MOUNT', mount), \
+                patch('runcomfy.config.PLUGIN_ROOT', plugin), \
+                patch('runcomfy.config.MOUNTINFO_PATH', mountinfo):
+            headers = {'X-RunComfy-Client': 'comfyui'}
+            response = await self.http.post('/runcomfy/config', json={'token': 'fixture-override'}, headers=headers)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(await response.json(), {'configured': True, 'source': 'file',
+                                                    'storage_scope': 'account', 'legacy_config_removed': False})
+            self.assertEqual(TokenStore().get(), 'fixture-override')
+            self.assertFalse((root / 'config.json').exists())
+            response = await self.http.get('/runcomfy/config')
+            self.assertNotIn('fixture-override', await response.text())
+            response = await self.http.delete('/runcomfy/config', json={}, headers=headers)
+            self.assertEqual((await response.json())['source'], 'environment')
+            mountinfo.write_text('')
+            response = await self.http.get('/runcomfy/config')
+            self.assertEqual(response.status, 503)
+            self.assertEqual((await response.json())['code'], 'private_storage_unavailable')
+
+    async def test_saved_override_drives_all_model_requests_and_clear_restores_environment(self):
+        headers = {'X-RunComfy-Client': 'comfyui'}
+        with patch.dict(os.environ, {'RUNCOMFY_API_TOKEN': 'fixture-environment'}):
+            for token in ['fixture-first', 'fixture-latest']:
+                response = await self.http.post('/runcomfy/config', json={'token': token}, headers=headers)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(await response.json(), {'configured': True, 'source': 'file'})
+                self.factory.assert_called_with(token)
+                for mid, model in MODELS.items():
+                    self.client_api.price.return_value = parse_price(
+                        {'model_id': mid, 'base_price_usd': .123, 'price_unit': model.price_unit}, mid)
+                    response = await self.http.get('/runcomfy/models/price', params={'model_id': mid})
+                    self.assertEqual(response.status, 200)
+                    self.factory.assert_called_with(token, model_id=mid)
+            response = await self.http.delete('/runcomfy/config', json={}, headers=headers)
+            self.assertEqual(await response.json(), {'configured': True, 'source': 'environment'})
+            await self.http.get('/runcomfy/seedance-25/price')
+            self.factory.assert_called_with('fixture-environment')
 
     async def test_same_host_wrong_scheme_is_not_same_origin(self):
         origin = str(self.http.make_url('/')).rstrip('/').replace('http:', 'https:')

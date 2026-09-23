@@ -4,13 +4,14 @@ import { installRunComfyExtension } from '../web/runcomfy-node.mjs';
 import { describePricing } from '../web/runcomfy-client.mjs';
 
 const quote = { model_id: 'bytedance/seedance-2.5/image-to-video/1080p', unit_price_usd: 0.57, price_unit: 'second', currency: 'USD', fetched_at: '2026-09-15T10:00:00Z' };
-function setup() {
+function setup(settingsHost = null) {
   let extension;
   const elements = [];
   const documentTarget = { body: { append() {} }, createElement(tag) {
     const el = { tag, style: {}, children: [], events: {}, append(...xs) { this.children.push(...xs); },
       replaceChildren(...xs) { this.children = xs; },
       setAttribute() {}, addEventListener(name, handler) { this.events[name] = handler; },
+      closest(selector) { assert.equal(selector, 'dialog, [role="dialog"]'); return settingsHost; },
       showModal() {}, focus() {}, close() {}, remove() {} };
     elements.push(el); return el;
   } };
@@ -58,6 +59,16 @@ test('token setup is a global setting action, not a persisted secret setting', (
   button.events.click();
   assert.equal(stored, false);
   assert.ok(elements.some(el => el.tag === 'input' && el.type === 'password'));
+});
+
+test('account action mounts the token dialog in the enclosing Settings dialog', () => {
+  let child;
+  const host = { append(element) { child = element; } };
+  const { extension } = setup(host);
+  const button = extension.settings.find(s => s.id === 'RunComfy.Account.APIToken').type();
+  assert.equal(button.type, 'button');
+  button.events.click();
+  assert.equal(child.tag, 'dialog');
 });
 
 test('old saved workflows drop metadata outputs while preserving their video connection', () => {

@@ -1,4 +1,5 @@
 import { MODELS } from "./runcomfy-models.mjs";
+import { tokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-private-account";
 
 const DEFAULT_MODEL = MODELS.RunComfySeedance25I2V1080p;
 const PRICE_URL = "/runcomfy/seedance-25/price";
@@ -39,7 +40,9 @@ function publicConfig(value) {
   if (typeof value?.configured !== "boolean" || !["environment", "file", "none"].includes(value.source)) {
     throw new Error("The server returned an invalid configuration status.");
   }
-  return { configured: value.configured, source: value.source };
+  return { configured: value.configured, source: value.source,
+    ...(value.storage_scope === "account" ? { storage_scope: "account",
+      legacy_config_removed: value.legacy_config_removed === true } : {}) };
 }
 
 /** Account changes invalidate every model before the server token is mutated. */
@@ -74,7 +77,7 @@ function createAccountCoordinator(fetchApi) {
           headers: { "Content-Type": "application/json", "X-RunComfy-Client": "comfyui" },
           ...(method === "POST" ? { body: JSON.stringify({ token }) } : {}),
         });
-        if (!result.ok) throw new Error("Unable to update the API token. Check your ComfyUI server connection.");
+        if (!result.ok) throw await tokenConfigError(result);
         publishConfig(publicConfig(await result.json()));
       } catch (caught) {
         error = caught;
@@ -101,7 +104,7 @@ function createAccountCoordinator(fetchApi) {
     async getConfig() {
       const requestedGeneration = generation;
       const result = await fetchApi(CONFIG_URL, { cache: "no-store" });
-      if (!result.ok) throw new Error("Unable to read the API token status.");
+      if (!result.ok) throw await tokenConfigError(result);
       const value = publicConfig(await result.json());
       if (requestedGeneration === generation && !changingToken) publishConfig(value);
       return value;
