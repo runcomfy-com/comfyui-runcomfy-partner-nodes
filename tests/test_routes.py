@@ -1,7 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
@@ -76,6 +77,40 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                                         headers={'X-RunComfy-Client': 'comfyui'})
         self.assertEqual(response.status, 200)
         self.assertNotIn('new-token', await response.text())
+
+    async def test_hosted_save_reopen_and_clear_use_shared_configuration(self):
+        with patch.dict(os.environ, {'RUNCOMFY_API_TOKEN_FILE': '/offline/not-read',
+                                    'RUNCOMFY_API_TOKEN': 'fixture-default'}, clear=True):
+            headers = {'X-RunComfy-Client': 'comfyui'}
+            response = await self.http.post('/runcomfy/config', json={'token': 'fixture-override'}, headers=headers)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(await response.json(), {'configured': True, 'source': 'file'})
+            self.assertEqual(TokenStore(self.store.path).get(), 'fixture-override')
+            self.assertEqual(self.store.path, Path(self.directory.name) / 'config.json')
+            response = await self.http.get('/runcomfy/config')
+            self.assertNotIn('fixture-override', await response.text())
+            response = await self.http.delete('/runcomfy/config', json={}, headers=headers)
+            self.assertEqual((await response.json())['source'], 'environment')
+            self.assertFalse(self.store.path.exists())
+
+    async def test_saved_override_drives_all_model_requests_and_clear_restores_environment(self):
+        headers = {'X-RunComfy-Client': 'comfyui'}
+        with patch.dict(os.environ, {'RUNCOMFY_API_TOKEN': 'fixture-environment'}):
+            for token in ['fixture-first', 'fixture-latest']:
+                response = await self.http.post('/runcomfy/config', json={'token': token}, headers=headers)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(await response.json(), {'configured': True, 'source': 'file'})
+                self.factory.assert_called_with(token)
+                for mid, model in MODELS.items():
+                    self.client_api.price.return_value = parse_price(
+                        {'model_id': mid, 'base_price_usd': .123, 'price_unit': model.price_unit}, mid)
+                    response = await self.http.get('/runcomfy/models/price', params={'model_id': mid})
+                    self.assertEqual(response.status, 200)
+                    self.factory.assert_called_with(token, model_id=mid)
+            response = await self.http.delete('/runcomfy/config', json={}, headers=headers)
+            self.assertEqual(await response.json(), {'configured': True, 'source': 'environment'})
+            await self.http.get('/runcomfy/seedance-25/price')
+            self.factory.assert_called_with('fixture-environment')
 
     async def test_same_host_wrong_scheme_is_not_same_origin(self):
         origin = str(self.http.make_url('/')).rstrip('/').replace('http:', 'https:')

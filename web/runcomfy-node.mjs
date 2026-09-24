@@ -1,5 +1,5 @@
-import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs";
-import { openTokenDialog } from "./runcomfy-token-dialog.mjs";
+import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs?v=20260923-shared-token2";
+import { openTokenDialog } from "./runcomfy-token-dialog.mjs?v=20260923-shared-token2";
 import { MODELS } from "./runcomfy-models.mjs";
 import { createExecutionRouter, createExecutedHandler, createStatusWidget, migrateWorkflowWidgets } from "./runcomfy-status.mjs";
 
@@ -300,12 +300,14 @@ export function installRunComfyExtension({ app, api, client, priceHub,
       tooltip: "Connect your RunComfy account. Your token is stored securely on this ComfyUI server.",
       type: () => {
         const button = documentTarget.createElement("button");
+        button.type = "button";
         button.textContent = "Configure account";
         Object.assign(button.style, { background: "#333", color: "#eee", border: "1px solid #666",
           borderRadius: "5px", padding: "7px 14px", font: "inherit", cursor: "pointer" });
         button.addEventListener("click", () => {
           if (dialog) { dialog.focus(); return; }
-          dialog = openTokenDialog({ documentTarget, client: accountClient, onClose: () => { dialog = null; } });
+          dialog = openTokenDialog({ documentTarget, parent: button.closest('dialog, [role="dialog"]') ?? documentTarget.body,
+            client: accountClient, onClose: () => { dialog = null; } });
         });
         return button;
       },

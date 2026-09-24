@@ -49,20 +49,28 @@ For an existing local checkout, copy or symlink this repository into `ComfyUI/cu
 
 Open **Settings → RunComfy → Account → API Token → Configure account** to enter your RunComfy API Token from [RunComfy Profile](https://www.runcomfy.com/profile). This account is shared by all RunComfy nodes. The dialog sends it to your ComfyUI server, validates it using a read-only model request, and stores it in an ignored `runcomfy_config.json` file with owner-only permissions.
 
-For managed instances, configure the environment instead:
+For self-managed instances, you can also configure the default environment account:
 
 ```sh
 export RUNCOMFY_API_TOKEN='your-own-api-token'
 python main.py
 ```
 
-Credential precedence is `RUNCOMFY_API_TOKEN` → `RUNCOMFY_TOKEN` → saved configuration. Environment configuration continues to apply if a saved token is deleted. `RUNCOMFY_CONFIG_PATH` can point to a protected config location outside the plugin directory. Credentials are never node inputs or part of workflow JSON; the API never returns a saved token to the browser.
+Credential precedence is **saved configuration → `RUNCOMFY_API_TOKEN` → `RUNCOMFY_TOKEN`**. Saving a new token explicitly switches the account used for pricing and subsequent generations. With no saved token, the environment account is used automatically. Choose **Clear saved token** to return to that default; leaving the replacement field blank keeps the current configuration. The dialog shows a masked saved indicator and the active credential source without returning the token to the browser. `RUNCOMFY_CONFIG_PATH` can point to a protected config location outside the plugin directory. Credentials are never node inputs or part of workflow JSON.
 
-On managed RunComfy machines, startup provides the machine owner's account token through `RUNCOMFY_API_TOKEN`. `RUNCOMFY_API_TOKEN_FILE` marks this managed connection: a missing injected token stops account access instead of falling back to a saved token from an image. Restart the machine to refresh a rotated token. This behavior requires the matching RunComfy machine-startup rollout; installing this plugin alone does not provision machine credentials.
+On managed RunComfy machines, startup provides the default machine owner's account token through `RUNCOMFY_API_TOKEN`. A token explicitly saved in Settings overrides it, including when the injected default is unavailable. `RUNCOMFY_API_TOKEN_FILE` marks this managed connection: without a saved override or injected token, account access stops instead of falling back to legacy `RUNCOMFY_TOKEN`. The plugin never reads the injected token file. Restart the machine to refresh a rotated default token. This behavior requires the matching RunComfy machine-startup rollout; installing this plugin alone does not provision machine credentials.
+
+**Cloud Save and shared tokens:** manually saved tokens stay in `runcomfy_config.json` in the plugin directory by default, alongside the token-scoped recovery journal. Cloud Save copies that directory, so reopening the saved snapshot restores the saved token. Anyone starting a machine from its share link can use that token's account balance, and anyone with access to the saved files can read the token. The injected environment token is not copied into this configuration file; a snapshot without a saved override uses the new machine's default account.
+
+Team-shared configuration paths are supported without requiring a personal `/user` mount. A custom `RUNCOMFY_CONFIG_PATH` outside the snapshot is retained only if that external storage is also preserved. The plugin keeps existing saved configuration on startup and ignores incomplete writes. To share without the manual token, choose **Clear saved token** before creating a new Cloud Save. Clearing it on a running machine does not remove it from snapshots already saved.
+
+Account changes invalidate paid-generation caches; saving or clearing a token only refreshes pricing and never queues a generation.
+
+The default API environment is `production` (`https://model-api.runcomfy.net`). For a token from RunComfy's Vercel develop environment, start ComfyUI with `RUNCOMFY_API_ENVIRONMENT=development` to use `https://model-api-int.runcomfy.net`. Restart ComfyUI after changing this setting and configure a token from the matching environment. Only these two RunComfy origins are supported; tokens are never automatically tried against another environment.
 
 Local storage uses mode `0600` on macOS/Linux. On Windows it uses the built-in `whoami` and `icacls` tools to remove inherited file access and grant the current account access before writing; permission failures stop the write.
 
-The token belongs to the **ComfyUI server instance**, so everyone who can run this instance can use that account. Use one account per instance and your existing authenticated ComfyUI access; this plugin does not add multi-user account isolation or website single sign-on.
+During execution the configured token is shared by the **ComfyUI server instance**, so everyone who can run this instance can use that account. A shared configuration file also shares token replacements and clearing between instances using that file. Use one account per instance and your existing authenticated ComfyUI access; this plugin does not add multi-user account isolation or website single sign-on.
 
 For an HTTPS reverse proxy, set `RUNCOMFY_PUBLIC_ORIGIN` to the exact public origin (for example `https://your-comfy.example.com`). Otherwise local routes require the browser Origin to match the ComfyUI server's scheme and host. Forwarded headers are not implicitly trusted.
 

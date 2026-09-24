@@ -16,9 +16,9 @@ Replace the paths with the instance's ComfyUI directory and Python interpreter. 
 
 ## Verify account setup
 
-Open **Settings → RunComfy → Account → API Token** to check the account connection. When the hosting service supplies `RUNCOMFY_API_TOKEN`, all partner nodes use that account automatically. Otherwise, choose **Configure account** and enter your API Token from [RunComfy Profile](https://www.runcomfy.com/profile).
+Open **Settings → RunComfy → Account → API Token** to check the account connection. With no saved override, all partner nodes use the hosting service's `RUNCOMFY_API_TOKEN` automatically. Choose **Configure account** and save your API Token from [RunComfy Profile](https://www.runcomfy.com/profile) to switch accounts. The dialog identifies a saved token with a masked placeholder and active-source status. Clear the saved token to return to the environment account.
 
-For a self-managed instance, see [environment configuration](../README.md#configure-your-account). `RUNCOMFY_API_TOKEN` takes precedence over `RUNCOMFY_TOKEN` and a saved configuration. `RUNCOMFY_API_TOKEN_FILE` is reserved for the managed startup contract: startup must read the protected file and export `RUNCOMFY_API_TOKEN` before launching ComfyUI. The plugin does not read that file itself. If this marker exists without an injected token, account access stops; restart the managed machine to reconnect. Installing the plugin alone does not provision managed credentials.
+For a self-managed instance, see [environment configuration](../README.md#configure-your-account). A saved token takes precedence over `RUNCOMFY_API_TOKEN`, which takes precedence over `RUNCOMFY_TOKEN`. `RUNCOMFY_API_TOKEN_FILE` is reserved for the managed startup contract: startup must read the protected file and export `RUNCOMFY_API_TOKEN` before launching ComfyUI. The plugin does not read that file itself. If this marker exists without a saved override or injected token, account access stops; restart the managed machine to reconnect. Legacy `RUNCOMFY_TOKEN` is not used on managed machines. Installing the plugin alone does not provision managed credentials.
 
 Verify the following before generating:
 
@@ -44,7 +44,7 @@ Generation is charged to the configured RunComfy account balance. Cloud machine 
 
 A green node border means execution is active; the plugin does not report a percentage for remote generation. If submission becomes uncertain, check the account history before queuing again. Use the node's recovery controls to retrieve an existing request without creating a new generation.
 
-Remove saved tokens and local request records before sharing a reusable instance snapshot. Stop a temporary test machine when it is no longer needed.
+Manually saved tokens and token-scoped recovery records stay in the plugin directory by default and are included in Cloud Save. Verify that reopening the snapshot retains the saved override, including when someone opens its share link on another machine. That person can use the saved token's account balance. A snapshot without a saved override uses the new machine's injected default token. Team-shared configuration paths are supported; external custom paths require their storage to be preserved separately. Clear the saved token before creating a snapshot that should not carry it. Clearing a running instance does not remove credentials from existing snapshots. Stop a temporary test machine when it is no longer needed.
 
 ## Offline checks and limitations
 

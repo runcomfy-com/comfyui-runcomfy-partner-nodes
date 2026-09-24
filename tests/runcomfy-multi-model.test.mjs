@@ -122,7 +122,7 @@ test("a token change through a sibling client refreshes other models even after 
   } });
   const a = hub.forModel(original), b = hub.forModel(imageModel);
   await Promise.all([a.refresh(), b.refresh()]);
-  await assert.rejects(b.clearToken(), /Unable to update/);
+  await assert.rejects(b.clearToken(), { code: "server_error" });
   assert.equal(a.state.quote.unit_price_usd, 0.2);
   assert.equal(b.state.quote.unit_price_usd, 0.2);
   assert.equal(a.state.accountRevision, 1);

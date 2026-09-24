@@ -1,5 +1,8 @@
+import { describeTokenConfigError } from "./runcomfy-config-error.mjs?v=20260923-shared-token2";
+
 /** The password exists only in this temporary dialog and the config request. */
-export function openTokenDialog({ documentTarget = globalThis.document, client, onClose = () => {} }) {
+export function openTokenDialog({ documentTarget = globalThis.document, parent = documentTarget.body,
+  client, onClose = () => {} }) {
   const el = (tag, text) => {
     const element = documentTarget.createElement(tag);
     if (text !== undefined) element.textContent = text;
@@ -16,6 +19,10 @@ export function openTokenDialog({ documentTarget = globalThis.document, client, 
   Object.assign(title.style, { margin: "0 0 8px", fontSize: "20px", color: "#e4c17c" });
   const help = el("p", "Use your RunComfy API token for image and video models. It is saved on this ComfyUI server and shared by everyone who can run this instance. Generations use this RunComfy account's balance, separately from Comfy credits.");
   Object.assign(help.style, { color: "#c6bba7", margin: "0 0 18px" });
+  const priorityHelp = el("p", "A saved token overrides the default environment account. Clear the saved token to use the default account again. Leaving this field blank keeps the current configuration.");
+  Object.assign(priorityHelp.style, { color: "#c6bba7", margin: "0 0 18px" });
+  const sharingHelp = el("p", "Cloud Save includes manually saved tokens in the default location. People opening the share link can use that account's balance. Clear the saved token before Cloud Save to share without it.");
+  Object.assign(sharingHelp.style, { color: "#c6bba7", margin: "0 0 18px" });
   const label = el("label", "API token");
   label.style.display = "block";
   const input = el("input");
@@ -46,21 +53,31 @@ export function openTokenDialog({ documentTarget = globalThis.document, client, 
   Object.assign(save.style, { background: "#d0ac62", color: "#211c14", fontWeight: "bold" });
   const clear = button("Clear saved token");
   const cancel = button("Close");
-  form.append(title, help, label, status, actions);
+  form.append(title, help, priorityHelp, sharingHelp, label, status, actions);
   dialog.append(form);
-  documentTarget.body.append(dialog);
+  // Keep the native top-layer dialog inside Settings' DOM boundary so its
+  // outside-pointer/focus handlers do not dismiss the underlying panel.
+  parent.append(dialog);
   let closed = false;
   let busy = false;
   let statusVersion = 0;
 
   const describeConfig = config => config.source === "environment"
-    ? "Environment token is configured and takes priority over a saved token."
-    : config.configured ? "A saved API token is configured." : "No API token is configured.";
+    ? "Using the default environment token. Save a token to override this account."
+    : config.configured ? "Saved API token is in use and takes priority over the environment token."
+      : "No API token is configured.";
+  const showConfig = (config, prefix = "") => {
+    input.placeholder = config.configured && config.source === "file"
+      ? "•••••••• — saved; paste to replace" : "Paste a RunComfy API token";
+    status.textContent = `${prefix}${describeConfig(config)}`;
+  };
   const setBusy = value => {
     busy = value;
     input.disabled = value;
     save.disabled = value;
     clear.disabled = value;
+    // Disabling the clicked button can move focus outside this dialog.
+    if (!value && !closed) input.focus();
   };
   const cleanup = () => {
     if (closed) return;
@@ -72,6 +89,10 @@ export function openTokenDialog({ documentTarget = globalThis.document, client, 
   const close = () => { input.value = ""; dialog.close(); cleanup(); };
   dialog.addEventListener("close", cleanup);
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
+  dialog.addEventListener("keydown", event => {
+    event.stopPropagation();
+    if (event.key === "Escape") { event.preventDefault(); close(); }
+  });
   cancel.addEventListener("click", close);
   form.addEventListener("submit", async event => {
     event.preventDefault();
@@ -86,9 +107,9 @@ export function openTokenDialog({ documentTarget = globalThis.document, client, 
       const operation = client.saveToken(token);
       token = "";
       const config = await operation;
-      if (!closed) status.textContent = `Token saved. ${describeConfig(config)}`;
-    } catch {
-      if (!closed) status.textContent = "Could not save the token. Check your ComfyUI server connection and try again.";
+      if (!closed) showConfig(config, "Token saved. ");
+    } catch (error) {
+      if (!closed) status.textContent = `Could not save the token. ${describeTokenConfigError(error)}`;
     } finally {
       token = "";
       input.value = "";
@@ -103,15 +124,15 @@ export function openTokenDialog({ documentTarget = globalThis.document, client, 
     status.textContent = "Clearing the saved token…";
     try {
       const config = await client.clearToken();
-      if (!closed) status.textContent = `Saved token cleared. ${describeConfig(config)}`;
-    } catch {
-      if (!closed) status.textContent = "Could not clear the saved token. Check your ComfyUI server connection and try again.";
+      if (!closed) showConfig(config, "Saved token cleared. ");
+    } catch (error) {
+      if (!closed) status.textContent = `Could not clear the saved token. ${describeTokenConfigError(error)}`;
     } finally { setBusy(false); }
   });
   void client.getConfig().then(config => {
-    if (!closed && statusVersion === 0) status.textContent = describeConfig(config);
-  }).catch(() => {
-    if (!closed && statusVersion === 0) status.textContent = "Could not read token configuration. Check your ComfyUI server connection.";
+    if (!closed && statusVersion === 0) showConfig(config);
+  }).catch(error => {
+    if (!closed && statusVersion === 0) status.textContent = `Could not read token configuration. ${describeTokenConfigError(error)}`;
   });
   dialog.showModal();
   input.focus();

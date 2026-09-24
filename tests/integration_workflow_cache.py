@@ -19,13 +19,16 @@ import execution
 import nodes
 from runcomfy.partner_nodes import PARTNER_NODE_MAPPINGS
 from runcomfy.pricing import parse_price
+from runcomfy.config import TokenStore
 
 
 class OfflineClient:
     submissions = []
+    submission_accounts = []
 
     def __init__(self, token, model_id):
         self.model_id = model_id
+        self.token = token
 
     async def price(self):
         return parse_price({'model_id': self.model_id, 'base_price_usd': 0.1,
@@ -33,6 +36,7 @@ class OfflineClient:
 
     async def submit(self, inputs):
         self.submissions.append(copy.deepcopy(inputs))
+        self.submission_accounts.append(self.token)
         return 'offline-job-' + str(len(self.submissions))
 
     async def result(self, request_id):
@@ -76,11 +80,10 @@ async def main():
         '2': {'class_type': 'RunComfyOfflineOutput', 'inputs': {
             'image': ['1', 0], 'filename': 'first'}},
     }
-    account = ['offline-account-one']
     image = torch.full((1, 8, 8, 3), 0.5)
     with tempfile.TemporaryDirectory(prefix='runcomfy-cache-test-') as directory, \
-            patch.dict(os.environ, {'RUNCOMFY_CONFIG_PATH': str(Path(directory) / 'config.json')}), \
-            patch('runcomfy.config.TokenStore._read', side_effect=lambda: (account[0], 'offline')), \
+            patch.dict(os.environ, {'RUNCOMFY_CONFIG_PATH': str(Path(directory) / 'config.json'),
+                                   'RUNCOMFY_API_TOKEN': 'offline-environment-account'}, clear=True), \
             patch('runcomfy.partner_nodes.AsyncRunComfyClient', OfflineClient), \
             patch('runcomfy.partner_nodes.download_images', new_callable=AsyncMock, return_value=image) as download, \
             patch.dict(nodes.NODE_CLASS_MAPPINGS, {
@@ -107,17 +110,29 @@ async def main():
         assert len(OfflineClient.submissions) == 2
         assert all('generation_seed' not in item for item in OfflineClient.submissions)
 
-        account[0] = 'offline-account-two'
+        store = TokenStore()
+        store.save('offline-saved-account')
         await run('account-change')
         assert len(OfflineClient.submissions) == 3, 'Account change incorrectly reused another account cache'
+        assert OfflineClient.submission_accounts[-1] == 'offline-saved-account'
+
+        store.save('offline-latest-account')
+        await run('replace-saved-account')
+        assert len(OfflineClient.submissions) == 4
+        assert OfflineClient.submission_accounts[-1] == 'offline-latest-account'
+
+        store.delete()
+        await run('restore-environment-account')
+        assert len(OfflineClient.submissions) == 5
+        assert OfflineClient.submission_accounts[-1] == 'offline-environment-account'
 
         prompt['1']['inputs']['resume_request_id'] = 'imported-offline-job'
         await run('resume')
-        assert len(OfflineClient.submissions) == 3, 'Resume submitted a new generation'
+        assert len(OfflineClient.submissions) == 5, 'Resume submitted a new generation'
         downloads_after_resume = download.await_count
         prompt['2']['inputs']['filename'] = 'resumed-downstream-only'
         await run('resume-cached')
-        assert len(OfflineClient.submissions) == 3
+        assert len(OfflineClient.submissions) == 5
         assert download.await_count == downloads_after_resume, 'Fixed resume downloaded again'
 
     print('PASS: real ComfyUI executor caches downstream-only edits and fixed resumes; '
