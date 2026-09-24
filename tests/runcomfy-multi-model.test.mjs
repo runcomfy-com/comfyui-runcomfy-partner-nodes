@@ -164,8 +164,7 @@ test("base catalog rates never imply a supported per-run estimate, including exe
     const live = quote(model);
     const execution = { state: "running", quote: { ...quote(model, 0.4), estimated_cost_usd: null }, cost_usd: 0.51 };
     const view = pricing.describePricing({ phase: "ready", quote: live }, { model, duration: model.durationMin, execution });
-    const unit = model.outputType === "IMAGE" ? "image" : "s";
-    assert.equal(view.badge, `Base $0.40/${unit}`);
+    assert.equal(view.badge, "Variable pricing");
     assert.doesNotMatch(view.badge, /NaN|Run|minimum/i);
     assert.doesNotMatch(view.estimate, /\$|NaN/);
     assert.match(view.actual, /\$0\.51/);
@@ -242,8 +241,8 @@ test("all registered model classes receive the same gold style and isolated comp
     assert.equal(node.widgets.length, 3);
     assert.equal(node.getExtraMenuOptions, undefined);
     const text = badge(node);
-    assert.match(text, model.outputType === "IMAGE" ? /\/image/ : /\/s/);
-    assert.equal(text.startsWith("Base "), model.pricingMode === "base");
+    if (model.pricingMode === "base") assert.equal(text, "Variable pricing");
+    else assert.match(text, model.outputType === "IMAGE" ? /\/image/ : /\/s/);
     for (const widget of node.widgets) {
       const dirty = node.dirty;
       assert.equal(typeof widget.callback, "function");
@@ -467,4 +466,21 @@ test("same-account completion during a transient price failure ends the running 
   await client.refresh();
   assert.equal(badge(node), "$0.30/s · ~$1.50/Run");
   node.onRemoved();
+});
+
+
+test("reference pricing shows live rules without treating the catalog base as a universal rate", () => {
+  const model = MODELS.RunComfySeedance25Reference1080p;
+  assert.ok(model);
+  const rules = "Without reference video: output seconds at the standard rate. With reference video: input + output seconds at the reference rate. Image and audio references are not billed.";
+  const live = { ...quote(model), pricing_note: rules };
+  const view = pricing.describePricing({ phase: "ready", quote: live }, { model, duration: 4 });
+  assert.equal(view.badge, "Variable pricing");
+  assert.equal(view.note, rules);
+  assert.match(view.estimate, /See pricing rules/);
+  assert.doesNotMatch(view.estimate, /\$/);
+  const missing = pricing.describePricing({ phase: "ready", quote: { ...live, pricing_note: "" } }, { model, duration: 4 });
+  assert.match(missing.estimate, /Pricing rules unavailable/);
+  assert.equal(missing.badge, "Variable pricing");
+  assert.equal(missing.note, "");
 });

@@ -1,7 +1,7 @@
-import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs?v=20260923-shared-token2";
+import { createPriceHub, describePricing, normalizeExecutionQuote } from "./runcomfy-client.mjs?v=20260924-pricing-rules";
 import { openTokenDialog } from "./runcomfy-token-dialog.mjs?v=20260923-shared-token2";
 import { MODELS } from "./runcomfy-models.mjs";
-import { createExecutionRouter, createExecutedHandler, createStatusWidget, migrateWorkflowWidgets } from "./runcomfy-status.mjs";
+import { createExecutionRouter, createExecutedHandler, createStatusWidget, migrateWorkflowWidgets } from "./runcomfy-status.mjs?v=20260924-pricing-rules";
 
 export const NODE_CLASS = "RunComfySeedance25I2V1080p";
 const BODY = "#665637";

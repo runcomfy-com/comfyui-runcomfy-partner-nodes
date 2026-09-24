@@ -79,7 +79,7 @@ For an HTTPS reverse proxy, set `RUNCOMFY_PUBLIC_ORIGIN` to the exact public ori
 1. Add a model from node search or import a starter example from the table above.
 2. Select your files in `Load Image`, `Load Video` or `Load Audio` where present, and enter a prompt. `example.png` and `reference.mp4` are placeholder filenames; the examples do not bundle input media.
 3. Choose the model's duration, aspect ratio, resolution and other available controls. FLUX also supports automatic duration.
-4. Check the compact gold badge: live unit rate, with a per-run estimate only when the catalog supports it. See the pricing limitation below.
+4. Check the compact gold badge: fixed unit rate and supported estimate, or “Variable pricing” with details inside the node. See the pricing limitation below.
 5. Choose **fixed** to reuse the result while editing downstream nodes, or **randomize** to request a new generation on each run. Queue the workflow. Connect the native result to `Save Video`, `Save Image` or `Save Audio`; `Save Video` preserves embedded audio.
 
 Request IDs appear in the status and recovery controls; hosted URLs stay in the internal download flow. Native connections work as follows:
@@ -114,12 +114,12 @@ Authorization: Bearer <your-token>
 Cache-Control: no-cache
 ```
 
-The node reads `base_price_usd` and `price_unit` from that response. There is **no hardcoded model price**, persisted quote, or fallback to a website/GitHub JSON file.
+The node reads `base_price_usd`, `price_unit`, and `pricing_note` from that response. There is **no hardcoded model price**, persisted quote, or fallback to a website/GitHub JSON file.
 
 - Refresh when the node/workflow opens, after token changes, on returning to the page, and every 30 seconds while the page is visible.
 - Pricing refreshes automatically; there is no manual refresh button. Nodes of the same model share in-flight requests; each model's quote is isolated. Changing accounts invalidates quotes and execution pricing across the nodes.
 - Fixed-rate Seedance I2V/T2V displays `/s` and `unit price × duration`. A connected or automatic duration has no fabricated total. Nano Banana displays `/image` and the single-output estimate.
-- **Variable pricing:** All 108 added nodes use base-only pricing, as do the original Reference-to-Video, Wan, FLUX and Seedream nodes. The current catalog exposes a base price and prose notes, but no structured parameter-specific quote. Resolution, audio, duration and other controls can change billing, so these nodes do not display a per-run total. `Base` is not a guaranteed minimum. Exact parameter-sensitive previews require a backend quote endpoint; no rate multipliers are hardcoded here.
+- **Variable pricing:** All 108 added nodes use base-only pricing, as do the original Reference-to-Video, Wan, FLUX and Seedream nodes. The current catalog exposes a base price and prose notes, but no structured parameter-specific quote. Resolution, audio, duration and other controls can change billing, so these nodes do not display a per-run total. The badge says “Variable pricing”; the status panel shows the catalog base rate and the complete API pricing note. When that note is missing, it explicitly says “Pricing rules unavailable”. `Base` is not a guaranteed minimum or the rate for every input combination. Exact parameter-sensitive previews require a backend quote endpoint; no rate multipliers are hardcoded here.
 - The Python node fetches the price again immediately before a new submission. A failed or malformed price lookup prevents that submission.
 - The standard ComfyUI context menu includes the explicit provider-switch action on supported nodes.
 - Failed refreshes show price unavailable rather than zero or a stale quote.

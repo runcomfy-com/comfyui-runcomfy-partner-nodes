@@ -162,6 +162,8 @@ export function createStatusWidget({ node, app, documentTarget, onChange }) {
     font: "12px/1.4 Arial, sans-serif", overflowY: "auto", overflowWrap: "anywhere" });
   root.addEventListener("pointerdown", event => event.stopPropagation());
   const price = el("div"), note = el("div"), status = el("div"), history = el("div");
+  note.setAttribute("aria-label", "RunComfy pricing rules");
+  Object.assign(note.style, { whiteSpace: "pre-line", margin: "6px 0" });
   status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const label = el("label", "Existing request ID");
   const input = el("input"); input.type = "text"; input.autocomplete = "off";
@@ -193,7 +195,8 @@ export function createStatusWidget({ node, app, documentTarget, onChange }) {
   domWidget.computeSize = () => [node.size?.[0] ?? 440, 250];
   const update = (view, executions = []) => {
     price.textContent = `${view.price} · ${view.estimate}`;
-    note.textContent = view.note || "";
+    note.textContent = view.note ? `Pricing rules: ${view.note}` : "";
+    note.hidden = !view.note;
     const signature = executions.map(entry => `${entry.prompt_id}:${entry.node_id}:${entry.state}`).join("|");
     if (signature !== lastExecutionSignature) notice = "";
     lastExecutionSignature = signature;

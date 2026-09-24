@@ -246,7 +246,7 @@ export function describePricing(state, { duration, durationConnected = false,
   if (resumed) estimate = "Resume existing request · no new submission";
   else if (resumeConnected) estimate = "Resume input connected · estimate unavailable";
   else if (!quote) estimate = "Estimate unavailable";
-  else if (baseOnly(quote)) estimate = "Base rate only · run estimate unavailable";
+  else if (baseOnly(quote)) estimate = `${quote.pricing_note?.trim() ? "See pricing rules" : "Pricing rules unavailable"} · run estimate unavailable`;
   else if (image) estimate = `${usd.format(nextEstimate)} estimated / image`;
   else if (durationConnected) estimate = "Duration connected · estimate at execution";
   else if (String(duration).toLowerCase() === "auto") estimate = "Automatic duration · estimate unavailable";
@@ -262,10 +262,10 @@ export function describePricing(state, { duration, durationConnected = false,
   let badge;
   if (resumed || resumeConnected) badge = "Resume request";
   else if (running && submissionQuote) {
-    badge = unitLabel(submissionQuote, true);
+    badge = baseOnly(submissionQuote) ? "Variable pricing" : unitLabel(submissionQuote, true);
     if (submissionQuote.estimated_cost_usd !== null) badge += ` · ~${usd.format(submissionQuote.estimated_cost_usd)}/Run`;
   } else if (quote) {
-    badge = unitLabel(quote, true);
+    badge = baseOnly(quote) ? "Variable pricing" : unitLabel(quote, true);
     if (nextEstimate !== null) badge += ` · ~${usd.format(nextEstimate)}/Run`;
   } else badge = state.phase === "configure" ? "Set up account" : state.phase === "loading" ? "Checking price…" : "Price unavailable";
   return {

@@ -270,3 +270,18 @@ test('legacy migration preserves third-party tails instead of mistaking old reco
   assert.throws(() => migrateWorkflowWidgets(ambiguous, schemas), /cannot safely migrate/);
   assert.equal(JSON.stringify(ambiguous), before);
 });
+
+
+test('pricing rules remain readable text alongside actual cost and clear when the quote is lost', () => {
+  const { ui, elements, view } = statusUI();
+  const rules = 'Without reference video: output seconds.\nWith reference video: input + output seconds. Images and audio are not billed. <script>untrusted</script>';
+  ui.update({ ...view, note: rules }, [{ state: 'completed', node_id: '2', cost_usd: 0.31 }]);
+  const note = elements.find(element => element['aria-label'] === 'RunComfy pricing rules');
+  assert.equal(note.textContent, `Pricing rules: ${rules}`);
+  assert.equal(note.hidden, false);
+  assert.equal(note.children.length, 0, 'catalog prose is never interpreted as HTML');
+  assert.ok(elements.some(element => element.textContent === 'Reported cost: $0.31 USD'));
+  ui.update({ ...view, note: '' });
+  assert.equal(note.textContent, '');
+  assert.equal(note.hidden, true);
+});
